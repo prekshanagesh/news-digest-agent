@@ -1,6 +1,8 @@
 from collections import defaultdict
 from datetime import datetime
 from storage.db import get_connection, is_postgres
+from dotenv import load_dotenv
+load_dotenv()
 
 
 def _placeholder() -> str:

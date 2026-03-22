@@ -14,6 +14,8 @@ Runs on http://localhost:5001
 """
 
 import logging
+from dotenv import load_dotenv
+load_dotenv()
 import sys
 from pathlib import Path
 from datetime import datetime
@@ -40,10 +42,11 @@ def record_click(article_hash: str, source: str, topic: str, sent_date: str) -> 
     """Write a click event to the clicks table."""
     try:
         conn = get_connection()
-        conn.execute(
+        cursor = conn.cursor()
+        cursor.execute(
             """
             INSERT INTO clicks (article_hash, source, topic, clicked_at, sent_date)
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s)
             """,
             (article_hash, source, topic, datetime.utcnow().isoformat(), sent_date)
         )

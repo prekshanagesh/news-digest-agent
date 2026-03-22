@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 from storage.db import get_connection
+from dotenv import load_dotenv
+load_dotenv()
 
 
 def get_click_weights() -> dict:
