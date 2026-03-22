@@ -10,3 +10,4 @@ anthropic
 flask
 pandas
 openai
+psycopg2-binary

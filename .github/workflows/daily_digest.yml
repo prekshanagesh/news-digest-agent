@@ -11,10 +11,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
@@ -27,20 +27,13 @@ jobs:
       - name: Write Gmail credentials
         run: echo '${{ secrets.GMAIL_CREDENTIALS_JSON }}' > credentials.json
 
-      - name: Initialize database
-        env:
-          DATABASE_PATH: data/news_digest.db
-        run: |
-          mkdir -p data
-          python3 -m storage.db
-
       - name: Run pipeline
         env:
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GMAIL_SENDER: ${{ secrets.GMAIL_SENDER }}
           DIGEST_RECIPIENT: ${{ secrets.DIGEST_RECIPIENT }}
-          DATABASE_PATH: data/news_digest.db
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           OLLAMA_BASE_URL: ""
           OLLAMA_MODEL: ""
         run: python3 -m app.main

@@ -1,56 +1,66 @@
-import sqlite3
+"""
+storage/db.py
+
+Supports both:
+- PostgreSQL (Supabase) when DATABASE_URL is set — used in production/GitHub Actions
+- SQLite when DATABASE_PATH is set — used locally
+"""
+
+import os
 import logging
 from pathlib import Path
 
-from app.config import DATABASE_PATH
-
 logger = logging.getLogger(__name__)
 
-# Resolve schema.sql relative to this file, not the working directory
-SCHEMA_PATH = Path(__file__).parent / "schema.sql"
+DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_PATH = os.getenv("DATABASE_PATH", "data/news_digest.db")
 
 
-def get_connection() -> sqlite3.Connection:
+def get_connection():
     """
-    Return a SQLite connection to the configured database.
-    Enables WAL mode for better concurrent read performance and
-    sets a busy timeout so concurrent writes don't immediately fail.
+    Returns a database connection.
+    Uses PostgreSQL if DATABASE_URL is set, otherwise SQLite.
     """
-    if not DATABASE_PATH:
-        raise EnvironmentError(
-            "DATABASE_PATH is not set. Check your .env file."
-        )
+    if DATABASE_URL:
+        import psycopg2
+        import psycopg2.extras
+        conn = psycopg2.connect(DATABASE_URL)
+        return conn
+    else:
+        import sqlite3
+        db_path = Path(DATABASE_PATH)
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(str(db_path), timeout=10)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA foreign_keys=ON;")
+        conn.row_factory = sqlite3.Row
+        return conn
 
-    # Ensure the parent directory exists (e.g. data/ folder)
-    db_path = Path(DATABASE_PATH)
-    db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    conn = sqlite3.connect(str(db_path), timeout=10)
-    conn.execute("PRAGMA journal_mode=WAL;")
-    conn.execute("PRAGMA foreign_keys=ON;")
-    conn.row_factory = sqlite3.Row
-    return conn
+def is_postgres() -> bool:
+    return bool(DATABASE_URL)
 
 
 def init_db() -> None:
     """
-    Initialize the database by running schema.sql.
-    Safe to call multiple times — all CREATE TABLE statements use IF NOT EXISTS.
+    Initialize SQLite database from schema.sql.
+    Only needed locally — Supabase schema is created via SQL Editor.
     """
+    if is_postgres():
+        logger.info("Using PostgreSQL — skipping local DB init.")
+        return
+
+    SCHEMA_PATH = Path(__file__).parent / "schema.sql"
     if not SCHEMA_PATH.exists():
-        raise FileNotFoundError(
-            f"Schema file not found at: {SCHEMA_PATH}. "
-            "Make sure schema.sql is in the storage/ directory."
-        )
+        raise FileNotFoundError(f"Schema file not found at: {SCHEMA_PATH}")
 
-    logger.info("Initializing database at: %s", DATABASE_PATH)
-
+    logger.info("Initializing SQLite database at: %s", DATABASE_PATH)
     conn = get_connection()
     try:
         conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
         conn.commit()
-        logger.info("Database initialized successfully.")
-    except sqlite3.Error as e:
+        logger.info("SQLite database initialized successfully.")
+    except Exception as e:
         logger.error("Failed to initialize database: %s", e)
         raise
     finally:
