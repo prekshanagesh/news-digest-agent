@@ -1,0 +1,12 @@
+feedparser
+requests
+apscheduler
+streamlit
+python-dotenv
+google-api-python-client
+google-auth
+google-auth-oauthlib
+anthropic
+flask
+pandas
+openai

@@ -1,0 +1,11 @@
+.env
+token.json
+credentials.json
+data/
+__pycache__/
+*.pyc
+.DS_Store
+*.log
+venv/
+scheduler.log
+tracker.log

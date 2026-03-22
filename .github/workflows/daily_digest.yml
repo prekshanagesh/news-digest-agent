@@ -1,0 +1,62 @@
+name: Daily News Digest
+
+on:
+  schedule:
+    - cron: '30 1 * * *'  # 7:00 AM IST = 1:30 AM UTC
+  workflow_dispatch:        # manual trigger from GitHub UI
+
+jobs:
+  send-digest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write Gmail token
+        run: echo '${{ secrets.GMAIL_TOKEN_JSON }}' > token.json
+
+      - name: Write Gmail credentials
+        run: echo '${{ secrets.GMAIL_CREDENTIALS_JSON }}' > credentials.json
+
+      - name: Initialize database and seed recipient
+        env:
+          DATABASE_PATH: data/news_digest.db
+        run: |
+          mkdir -p data
+          python3 -m storage.db
+          python3 -c "
+import sys, secrets
+from datetime import datetime
+from storage.db import get_connection
+conn = get_connection()
+try:
+    conn.execute(
+        'INSERT INTO recipients (email, name, topics, is_active, unsubscribe_token, subscribed_at) VALUES (?, ?, ?, 1, ?, ?)',
+        ('${{ secrets.DIGEST_RECIPIENT }}', 'Preksha', 'AI,Politics,World,Technology', secrets.token_urlsafe(32), datetime.utcnow().isoformat())
+    )
+    conn.commit()
+    print('Recipient added.')
+except Exception as e:
+    print(f'Recipient already exists or error: {e}')
+conn.close()
+"
+
+      - name: Run pipeline
+        env:
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GMAIL_SENDER: ${{ secrets.GMAIL_SENDER }}
+          DIGEST_RECIPIENT: ${{ secrets.DIGEST_RECIPIENT }}
+          DATABASE_PATH: data/news_digest.db
+          OLLAMA_BASE_URL: ""
+          OLLAMA_MODEL: ""
+        run: python3 -m app.main
