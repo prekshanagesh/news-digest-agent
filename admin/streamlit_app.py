@@ -15,6 +15,9 @@ from collections import defaultdict
 import streamlit as st
 import pandas as pd
 
+if "DATABASE_URL" in st.secrets:
+    os.environ["DATABASE_URL"] = st.secrets["DATABASE_URL"]
+
 # ── Path setup so imports work when run from admin/ ──────────────────────────
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
